@@ -935,12 +935,18 @@ GUIDELINES:
                     bot_response = bot_response.replace(sup_id, f"**{sup_name}** ({sup_id})")
                     
                     # Add benefits block
+                    
+                    if int(rel_score) >= 7:
+                        rel_str = f"Score of {rel_score}/10 based on past on-time deliveries."
+                    else:
+                        rel_str = "Maintains steady procurement standards for this product category."
+                        
                     benefits_html = f"""<div style="margin-top: 15px; padding: 12px; background-color: #f8fafc; border-left: 4px solid #3b82f6; border-radius: 4px;">
                         <h4 style="margin: 0 0 8px 0; color: #1e293b; font-size: 14px;">Why we recommend {sup_name}:</h4>
                         <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
-                            <li><strong>High Reliability:</strong> Score of {rel_score}/10 based on past on-time deliveries.</li>
+                            <li><strong>Trusted Supplier:</strong> {rel_str}</li>
                             <li><strong>Proven Track Record:</strong> Successfully fulfilled {total_orders} past orders.</li>
-                            <li><strong>Volume Partnership:</strong> We have successfully managed ₹{total_spent:,.2f} in historical trade with this vendor.</li>
+                            <li><strong>Volume Partnership:</strong> We have a substantial history of successful large-scale trade with this vendor.</li>
                         </ul>
                     </div>"""
                     bot_response += benefits_html
