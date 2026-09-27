@@ -956,6 +956,19 @@ GUIDELINES:
                     bot_response += order_btn
             conn_sup.close()
 
+        # Intercept to parse product IDs
+        product_matches = list(set(re.findall(r'PROD\d{3}', bot_response)))
+        if product_matches:
+            conn_prod = get_db()
+            cur_prod = conn_prod.cursor()
+            for prod_id in product_matches:
+                cur_prod.execute("SELECT ProductName FROM products WHERE ProductID = ?", (prod_id,))
+                row = cur_prod.fetchone()
+                if row:
+                    prod_name = row[0]
+                    bot_response = bot_response.replace(prod_id, f"**{prod_name}** ({prod_id})")
+            conn_prod.close()
+
     except Exception as e:
         print(f"LLM API Error: {e}")
         bot_response = "I am unable to process that request right now."
