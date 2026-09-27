@@ -912,6 +912,44 @@ GUIDELINES:
         # If NVIDIA fails (returns ""), just surface the raw DronaHQ context which contains the data!
         if not bot_response:
             bot_response = f"**Data retrieved from AI Model / DronaHQ:**\n\n{dronahq_response}"
+            
+        # Optional intercept to parse supplier IDs and append order button
+        import re
+        supplier_matches = list(set(re.findall(r'SUP\d{3}', bot_response)))
+        if supplier_matches:
+            conn_sup = get_db()
+            cur_sup = conn_sup.cursor()
+            for sup_id in supplier_matches:
+                cur_sup.execute("SELECT SupplierName, ContactEmail, ReliabilityScore FROM suppliers WHERE SupplierID = ?", (sup_id,))
+                row = cur_sup.fetchone()
+                if row:
+                    sup_name, sup_email, rel_score = row
+                    
+                    # Fetch total orders to show interaction history
+                    cur_sup.execute("SELECT COUNT(*), SUM(TotalAmountSpent) FROM purchase_orders WHERE SupplierID = ?", (sup_id,))
+                    po_stats = cur_sup.fetchone()
+                    total_orders = po_stats[0] if po_stats else 0
+                    total_spent = po_stats[1] if po_stats and po_stats[1] else 0
+
+                    # Replace the raw ID with the supplier name
+                    bot_response = bot_response.replace(sup_id, f"**{sup_name}** ({sup_id})")
+                    
+                    # Add benefits block
+                    benefits_html = f"""<div style="margin-top: 15px; padding: 12px; background-color: #f8fafc; border-left: 4px solid #3b82f6; border-radius: 4px;">
+                        <h4 style="margin: 0 0 8px 0; color: #1e293b; font-size: 14px;">Why we recommend {sup_name}:</h4>
+                        <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #475569;">
+                            <li><strong>High Reliability:</strong> Score of {rel_score}/10 based on past on-time deliveries.</li>
+                            <li><strong>Proven Track Record:</strong> Successfully fulfilled {total_orders} past orders.</li>
+                            <li><strong>Volume Partnership:</strong> We have successfully managed ₹{total_spent:,.2f} in historical trade with this vendor.</li>
+                        </ul>
+                    </div>"""
+                    bot_response += benefits_html
+                    
+                    # Append order button
+                    order_btn = f'<br><a href="mailto:{sup_email}?subject=Purchase%20Order%20Inquiry&body=Hi%20{sup_name.replace(" ", "%20")},%0A%0AWe%20would%20like%20to%20place%20an%20order." class="action-btn" style="display:inline-block; margin-top:5px; padding:8px 16px; background-color:#3b82f6; color:white; text-decoration:none; border-radius:4px; font-weight:bold;">🛒 Order from {sup_name}</a>'
+                    bot_response += order_btn
+            conn_sup.close()
+
     except Exception as e:
         print(f"LLM API Error: {e}")
         bot_response = "I am unable to process that request right now."
