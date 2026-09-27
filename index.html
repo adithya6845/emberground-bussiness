@@ -518,16 +518,15 @@
 
                         <!-- Voice Agent Modal Overlay -->
                         <div id="voiceAgentModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(8px); z-index:9999; justify-content:center; align-items:center;">
-                            <div style="background:#1e1e2e; border-radius:20px; padding:30px; width:480px; max-width:90vw; text-align:center; position:relative; box-shadow:0 20px 60px rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1);">
+                            <div style="background:#1e1e2e; border-radius:20px; padding:30px; width:420px; max-width:90vw; text-align:center; position:relative; box-shadow:0 20px 60px rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.1);">
                                 <button onclick="toggleVoiceAgent()" style="position:absolute; top:12px; right:16px; background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer;">&times;</button>
                                 <div style="margin-bottom:15px;">
-                                    <div id="voicePulse" style="width:80px; height:80px; background:linear-gradient(135deg,#6366f1,#8b5cf6); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; font-size:32px; transition:all 0.3s ease; cursor:pointer;" onclick="toggleListening()">🎙️</div>
+                                    <div style="width:60px; height:60px; background:linear-gradient(135deg,#6366f1,#8b5cf6); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; font-size:28px;">🎙️</div>
                                     <h3 style="color:#f1f5f9; margin:0 0 5px;">Gemma Voice Assistant</h3>
-                                    <p id="voiceStatus" style="color:#94a3b8; font-size:13px; margin:0;">Tap the mic to start speaking</p>
+                                    <p style="color:#94a3b8; font-size:13px; margin:0;">Tap the mic and ask anything about your business</p>
                                 </div>
-                                <div id="voiceTranscript" style="min-height:40px; padding:12px; background:#0f172a; border-radius:10px; margin-bottom:12px; color:#cbd5e1; font-size:14px; text-align:left; max-height:100px; overflow-y:auto;"></div>
-                                <div id="voiceResponse" style="min-height:60px; padding:14px; background:#1a1a2e; border-left:4px solid #6366f1; border-radius:10px; color:#e2e8f0; font-size:14px; text-align:left; max-height:200px; overflow-y:auto;">
-                                    <span style="color:#64748b;">Response will appear here...</span>
+                                <div id="voiceWidgetContainer">
+                                    <elevenlabs-convai agent-id="agent_5701m3hae9zwezxt59fmvz2yxy4e"></elevenlabs-convai>
                                 </div>
                             </div>
                         </div>
@@ -1050,110 +1049,20 @@
         </div>
     </div>
 
+    <script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>
     <script>
-        let isListening = false;
-        let recognition = null;
-
         function toggleVoiceAgent() {
             const modal = document.getElementById('voiceAgentModal');
             if (modal.style.display === 'none' || modal.style.display === '') {
                 modal.style.display = 'flex';
             } else {
                 modal.style.display = 'none';
-                if (isListening && recognition) { recognition.stop(); isListening = false; }
-                window.speechSynthesis?.cancel();
             }
         }
 
-        function toggleListening() {
-            if (isListening) { recognition?.stop(); return; }
-            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SR) { document.getElementById('voiceStatus').textContent = '⚠️ Use Chrome for voice support'; return; }
-
-            recognition = new SR();
-            recognition.lang = 'en-IN';
-            recognition.interimResults = true;
-            recognition.continuous = false;
-
-            const pulse = document.getElementById('voicePulse');
-            const status = document.getElementById('voiceStatus');
-            const transcript = document.getElementById('voiceTranscript');
-
-            recognition.onstart = () => {
-                isListening = true;
-                pulse.style.boxShadow = '0 0 0 12px rgba(99,102,241,0.3)';
-                pulse.style.background = 'linear-gradient(135deg,#ef4444,#f97316)';
-                status.textContent = '🔴 Listening... speak now';
-                transcript.innerHTML = '<span style="color:#64748b;">Listening...</span>';
-            };
-
-            recognition.onresult = (e) => {
-                let final = '', interim = '';
-                for (let i = 0; i < e.results.length; i++) {
-                    if (e.results[i].isFinal) final += e.results[i][0].transcript;
-                    else interim += e.results[i][0].transcript;
-                }
-                transcript.innerHTML = (final || interim) ? '<strong>You:</strong> ' + (final || '<em>' + interim + '</em>') : '';
-            };
-
-            recognition.onend = () => {
-                isListening = false;
-                pulse.style.boxShadow = 'none';
-                pulse.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)';
-                const text = transcript.innerText.replace('You: ', '').replace('Listening...', '').trim();
-                if (text) { status.textContent = '⏳ Fetching answer from Gemma AI...'; fetchVoiceResponse(text); }
-                else { status.textContent = 'Tap the mic to start speaking'; }
-            };
-
-            recognition.onerror = () => {
-                isListening = false;
-                pulse.style.boxShadow = 'none';
-                pulse.style.background = 'linear-gradient(135deg,#6366f1,#8b5cf6)';
-                status.textContent = '⚠️ Could not hear you. Tap mic to try again.';
-            };
-
-            recognition.start();
-        }
-
-        async function fetchVoiceResponse(userText) {
-            const responseDiv = document.getElementById('voiceResponse');
-            const status = document.getElementById('voiceStatus');
-            responseDiv.innerHTML = '<span style="color:#64748b;">Thinking...</span>';
-
-            try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: userText })
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    let answer = data.response || 'I could not process that.';
-                    const cleanAnswer = answer.replace(/<[^>]*>/g, '').replace(/\*\*(.*?)\*\*/g, '$1').replace(/\n/g, ' ').replace(/•/g, '. ').trim();
-                    const formatted = answer.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-                    responseDiv.innerHTML = '<strong>Gemma:</strong><br>' + formatted;
-                    status.textContent = '🔊 Speaking...';
-
-                    const utterance = new SpeechSynthesisUtterance(cleanAnswer.substring(0, 500));
-                    utterance.lang = 'en-IN';
-                    utterance.rate = 1.0;
-                    const voices = window.speechSynthesis.getVoices();
-                    const voice = voices.find(v => v.lang.startsWith('en'));
-                    if (voice) utterance.voice = voice;
-                    utterance.onend = () => { status.textContent = 'Tap the mic to ask another question'; };
-                    window.speechSynthesis.speak(utterance);
-                } else {
-                    responseDiv.innerHTML = '<span style="color:#f87171;">Failed to get response.</span>';
-                    status.textContent = 'Tap the mic to try again';
-                }
-            } catch (err) {
-                responseDiv.innerHTML = '<span style="color:#f87171;">Network error.</span>';
-                status.textContent = 'Tap the mic to try again';
-            }
-        }
-
-        document.getElementById('voiceAgentModal')?.addEventListener('click', function(e) { if (e.target === this) toggleVoiceAgent(); });
-        window.speechSynthesis?.getVoices();
+        document.getElementById('voiceAgentModal')?.addEventListener('click', function(e) { 
+            if (e.target === this) toggleVoiceAgent(); 
+        });
     </script>
     <script src="app.js"></script>
 </body>
