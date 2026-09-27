@@ -1,8 +1,10 @@
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
 .env
+__pycache__/
+.gemini/
 node_modules/
-.DS_Store
-Thumbs.db
+*.pyc
+patch_*.py
+fix*.py
+python.py
+*_backup.*
+frontend/

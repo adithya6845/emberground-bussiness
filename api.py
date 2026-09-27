@@ -11,17 +11,25 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 import requests
+from dotenv import load_dotenv
+load_dotenv()
+
 DB_PATH = os.path.join(os.path.dirname(__file__), "sme_data.db")
 DATA_DIR = os.path.dirname(__file__)
 
+# Environment variables
+DRONAHQ_WEBHOOK_URL = os.environ.get("DRONAHQ_WEBHOOK_URL", "https://agents-backend.dronahq.com/webhook/b0fc1da7-7fd9-4f22-a810-cd8893dddae1")
+DRONAHQ_API_KEY = os.environ.get("DRONAHQ_API_KEY", "sk_Adr7hCyX3B0IU6mI19lnV8PMLaw6Y644")
+NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "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")
+NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "meta/llama2-70b")
+
 def ask_dronahq(query_text: str) -> str:
-    url = "https://agents-backend.dronahq.com/webhook/b0fc1da7-7fd9-4f22-a810-cd8893dddae1"
     headers = {
-        "Authorization": "Bearer sk_Adr7hCyX3B0IU6mI19lnV8PMLaw6Y644",
+        "Authorization": f"Bearer {DRONAHQ_API_KEY}",
         "Content-Type": "application/json"
     }
     payload = {"query": query_text}
-    response = requests.post(url, headers=headers, json=payload, timeout=30)
+    response = requests.post(DRONAHQ_WEBHOOK_URL, headers=headers, json=payload, timeout=30)
     response.raise_for_status()
     data = response.json()
     if "response" in data:
@@ -35,11 +43,11 @@ def ask_dronahq(query_text: str) -> str:
 def format_with_nvidia(system_prompt: str, user_text: str) -> str:
     url = "https://integrate.api.nvidia.com/v1/chat/completions"
     headers = {
-        "Authorization": "Bearer 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",
+        "Authorization": f"Bearer {NVIDIA_API_KEY}",
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "meta/llama2-70b",
+        "model": NVIDIA_MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_text}
@@ -1198,4 +1206,5 @@ def serve_root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080, reload=False)
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
