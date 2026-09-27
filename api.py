@@ -12,7 +12,12 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 import requests
 from dotenv import load_dotenv
-load_dotenv()
+
+# Load .env from Render secret files path, or local .env
+if os.path.exists("/etc/secrets/.env"):
+    load_dotenv("/etc/secrets/.env")
+else:
+    load_dotenv()
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "sme_data.db")
 DATA_DIR = os.path.dirname(__file__)
